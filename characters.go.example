@@ -1,0 +1,90 @@
+// Copy this file to characters.go and replace the sample sheets with your own.
+// characters.go is gitignored so your party stays out of the repo.
+
+package main
+
+import "dnd/internal/dice"
+
+// dx keeps the sheets terse; bad literals panic at startup.
+var dx = dice.MustParse
+
+// Roster builds fresh characters from their sheets. Sheets hold only static
+// stats; every mutable value (current HP, gold, uses left, prepared spells,
+// items) starts at its full/empty default here and is overlaid from the save.
+func Roster() []*Character {
+	chars := []*Character{fighter(), wizard()}
+	for _, c := range chars {
+		c.HP = c.MaxHP
+		for _, r := range c.Resources {
+			r.Left = r.Max
+		}
+	}
+	return chars
+}
+
+func fighter() *Character {
+	return &Character{
+		Name: "Brenna Stonefist",
+		// Class name only, e.g. "Paladin"; it ranks 5etools search results.
+		Class:      "Fighter",
+		Level:      5,
+		Abilities:  [numAbilities]int{STR: 17, DEX: 12, CON: 16, INT: 8, WIS: 13, CHA: 10},
+		SaveProfs:  SetOf(STR, CON),
+		SkillProfs: SetOf(Athletics, Intimidation, Perception),
+		AC:         18,
+		Speed:      "30 ft.",
+		MaxHP:      49,
+		Attacks: []Attack{
+			{Name: "Longsword", Ability: STR, Damage: dx("1d8")},
+			{Name: "Longsword (two-handed)", Ability: STR, Damage: dx("1d10")},
+			{Name: "Javelin", Ability: STR, Damage: dx("1d6")},
+		},
+		Resources: []*Resource{
+			{Name: "Hit Dice", Max: 5, Reset: LongRest, Dice: dx("1d10"), Heal: true, Half: true},
+			{Name: "Second Wind", Max: 1, Reset: ShortRest, Dice: dx("1d10+5"), Note: "bonus action, heal"},
+			{Name: "Action Surge", Max: 1, Reset: ShortRest},
+			{Name: "Potion of Healing", Max: 2, Reset: NoReset, Dice: dx("2d4+2")},
+		},
+		Profs: Proficiencies{
+			Armor:     []string{"All armor", "Shields"},
+			Weapons:   []string{"Simple weapons", "Martial weapons"},
+			Tools:     []string{"Smith's Tools"},
+			Languages: []string{"Common", "Dwarvish"},
+		},
+	}
+}
+
+func wizard() *Character {
+	return &Character{
+		Name:       "Orrin Vale",
+		Class:      "Wizard",
+		Level:      5,
+		Abilities:  [numAbilities]int{STR: 8, DEX: 14, CON: 14, INT: 17, WIS: 12, CHA: 10},
+		SaveProfs:  SetOf(INT, WIS),
+		SkillProfs: SetOf(Arcana, History, Investigation),
+		AC:         12,
+		Speed:      "30 ft.",
+		MaxHP:      32,
+		Attacks: []Attack{
+			{Name: "Fire Bolt", Ability: INT, Damage: dx("2d10"), NoMod: true},
+			{Name: "Fireball", Ability: INT, Damage: dx("8d6"), NoMod: true, Save: new(DEX), Uses: "3rd Slot"},
+			{Name: "Magic Missile", Ability: INT, Damage: dx("1d4+1"), NoMod: true, Count: 3, Uses: "1st Slot"},
+		},
+		Resources: []*Resource{
+			{Name: "Hit Dice", Max: 5, Reset: LongRest, Dice: dx("1d6"), Heal: true, Half: true},
+			{Name: "1st Slot", Max: 4, Reset: LongRest},
+			{Name: "2nd Slot", Max: 3, Reset: LongRest},
+			{Name: "3rd Slot", Max: 2, Reset: LongRest},
+			{Name: "Arcane Recovery", Max: 1, Reset: LongRest, Note: "short rest: regain slots totaling 3 levels"},
+		},
+		// Prepared: INT mod + wizard level = 8.
+		Spellcasting: &Spellcasting{
+			Class: "Wizard", Ability: INT, MaxLevel: 3, PrepLimit: 8,
+			Cantrips: []string{"Fire Bolt", "Light", "Mage Hand", "Prestidigitation"},
+		},
+		Profs: Proficiencies{
+			Weapons:   []string{"Daggers", "Darts", "Slings", "Quarterstaffs", "Light crossbows"},
+			Languages: []string{"Common", "Elvish", "Draconic"},
+		},
+	}
+}

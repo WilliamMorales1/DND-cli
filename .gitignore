@@ -1,0 +1,8 @@
+# Built binary
+/dnd
+
+# Personal data: your party, save file, and notes
+/characters.go
+/dnd.json
+/notes.md
+.dnd-*.tmp
