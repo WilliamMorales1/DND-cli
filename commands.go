@@ -41,55 +41,97 @@ func init() {
 	commands = []*command{
 		{names: []string{"roll", "r"}, args: "<dice>", help: "roll/calc, e.g. 2d6+3, 4d6 >= 15", run: cmdRoll},
 		{names: []string{"chars"}, help: "list characters", run: cmdChars},
-		{names: []string{"use"}, args: "<name>", help: "pick character", mutates: true,
+		{
+			names: []string{"use"}, args: "<name>", help: "pick character", mutates: true,
 			complete: func(s *Session) []string { return names(s.Chars, charName) },
-			run:      cmdUse},
+			run:      cmdUse,
+		},
 		{names: []string{"sheet"}, help: "character sheet", run: show((*Character).PrintSheet)},
-		{names: []string{"check"}, args: "<ability> [adv|dis]", help: "ability check / saving throw", mode: true,
-			complete: abilityList, run: cmdCheck(false)},
-		{names: []string{"save"}, args: "<ability> [adv|dis]", mode: true,
-			complete: abilityList, run: cmdCheck(true)},
-		{names: []string{"skill"}, args: "<skill> [adv|dis]", help: "skill check", mode: true,
+		{
+			names: []string{"check"}, args: "<ability> [adv|dis]", help: "ability check / saving throw", mode: true,
+			complete: abilityList, run: cmdCheck(false),
+		},
+		{
+			names: []string{"save"}, args: "<ability> [adv|dis]", mode: true,
+			complete: abilityList, run: cmdCheck(true),
+		},
+		{
+			names: []string{"skill"}, args: "<skill> [adv|dis]", help: "skill check", mode: true,
 			complete: func(*Session) []string { return names(skills, func(s skillInfo) string { return s.name }) },
-			run:      cmdSkill},
-		{names: []string{"attack", "atk"}, args: "<name> [adv|dis]", help: "attack + damage",
+			run:      cmdSkill,
+		},
+		{
+			names: []string{"attack", "atk"}, args: "<name> [adv|dis]", help: "attack + damage",
 			mutates: true, mode: true,
 			complete: func(s *Session) []string { return names(s.Current.Attacks, attackName) },
-			run:      cmdAttack},
-		{names: []string{"init"}, args: "[adv|dis]", help: "initiative",
+			run:      cmdAttack,
+		},
+		{
+			names: []string{"init"}, args: "[adv|dis]", help: "initiative",
 			complete: func(*Session) []string { return []string{"adv", "dis"} },
-			run:      cmdInit},
+			run:      cmdInit,
+		},
 		{names: []string{"dmg"}, args: "<n>", help: "damage / heal HP", mutates: true, run: cmdHP((*Character).Damage)},
 		{names: []string{"heal"}, args: "<n>", mutates: true, run: cmdHP((*Character).Heal)},
 		{names: []string{"res"}, help: "limited uses", run: show((*Character).PrintResources)},
-		{names: []string{"spend"}, args: "<resource> [n]", help: "spend / regain resource uses", mutates: true,
-			complete: resourceNames, run: cmdSpend(true)},
-		{names: []string{"regain"}, args: "<resource> [n]", mutates: true,
-			complete: resourceNames, run: cmdSpend(false)},
-		{names: []string{"rest"}, args: "short|long", help: "short or long rest", mutates: true,
+		{
+			names: []string{"spend"}, args: "<resource> [n]", help: "spend / regain resource uses", mutates: true,
+			complete: resourceNames, run: cmdSpend(true),
+		},
+		{
+			names: []string{"regain"}, args: "<resource> [n]", mutates: true,
+			complete: resourceNames, run: cmdSpend(false),
+		},
+		{
+			names: []string{"rest"}, args: "short|long", help: "short or long rest", mutates: true,
 			complete: func(*Session) []string { return []string{"short", "long"} },
-			run:      cmdRest},
+			run:      cmdRest,
+		},
 		{names: []string{"inv"}, help: "inventory", run: show((*Character).PrintInventory)},
 		{names: []string{"gold"}, args: "[+n|-n|n]", help: "show/change gold", mutates: true, run: cmdGold},
 		{names: []string{"add"}, args: "<item>", help: "add / remove item", mutates: true, run: cmdAdd},
-		{names: []string{"rm"}, args: "<item>", mutates: true,
+		{
+			names: []string{"rm"}, args: "<item>", mutates: true,
 			complete: func(s *Session) []string { return slices.Concat(s.Current.Inventory, s.Current.Equipped) },
-			run:      cmdRemove},
-		{names: []string{"equip"}, args: "<item>", help: "equip / unequip item", mutates: true,
+			run:      cmdRemove,
+		},
+		{
+			names: []string{"attune"}, args: "<item>", help: "attune / unattune to item", mutates: true,
 			complete: func(s *Session) []string { return s.Current.Inventory },
-			run:      cmdEquip(true)},
-		{names: []string{"unequip"}, args: "<item>", mutates: true,
+			run:      cmdAttune(true),
+		},
+		{
+			names: []string{"unattune"}, args: "<item>", mutates: true,
+			complete: func(s *Session) []string { return s.Current.Attuned },
+			run:      cmdAttune(false),
+		},
+		{
+			names: []string{"equip"}, args: "<item>", help: "equip / unequip item", mutates: true,
+			complete: func(s *Session) []string { return s.Current.Inventory },
+			run:      cmdEquip(true),
+		},
+		{
+			names: []string{"unequip"}, args: "<item>", mutates: true,
 			complete: func(s *Session) []string { return s.Current.Equipped },
-			run:      cmdEquip(false)},
+			run:      cmdEquip(false),
+		},
 		{names: []string{"spells"}, help: "list spells", run: show((*Character).PrintSpells)},
-		{names: []string{"prepare", "prep"}, args: "<spell>", help: "prepare / unprepare spell", mutates: true,
-			run: cmdPrepare},
-		{names: []string{"unprepare", "unprep"}, args: "<spell>", mutates: true,
-			complete: preparedNames, run: cmdUnprepare},
-		{names: []string{"profs"}, help: "proficiencies",
-			run: show((*Character).PrintProfs)},
-		{names: []string{"search", "lookup"}, args: "[kind] <name>[|source]", help: "5etools lookup",
-			complete: searchOptions, run: cmdSearch},
+		{
+			names: []string{"prepare", "prep"}, args: "<spell>", help: "prepare / unprepare spell", mutates: true,
+			run: cmdPrepare,
+		},
+		{
+			names: []string{"unprepare", "unprep"}, args: "<spell>", mutates: true,
+			complete: preparedNames, run: cmdUnprepare,
+		},
+		{
+			names: []string{"profs"}, help: "proficiencies",
+			run: show((*Character).PrintProfs),
+		},
+		{
+			names: []string{"search", "lookup"}, args: "[kind] <name>[|source]", help: "5etools lookup",
+			complete: searchOptions, run: cmdSearch,
+		},
 		{names: []string{"help", "h", "?"}, help: "this list", run: cmdHelp},
 		{names: []string{"quit", "exit", "q"}, help: "exit", run: func(*Session, []string) error { return errQuit }},
 	}
@@ -427,6 +469,26 @@ func cmdRemove(s *Session, args []string) error {
 	return nil
 }
 
+func cmdAttune(equip bool) func(*Session, []string) error {
+	return func(s *Session, args []string) error {
+		if len(args) == 0 {
+			return errUsage
+		}
+		c := s.Current
+		from, to, verb := &c.Attuned, &c.Inventory, "unattuned"
+		if equip {
+			from, to, verb = to, from, "attuned"
+		}
+		item, err := takeItem(from, strings.Join(args, " "))
+		if err != nil {
+			return err
+		}
+		*to = append(*to, item)
+		fmt.Fprintf(stdout, "  %s %s\n", verb, item)
+		return nil
+	}
+}
+
 func cmdEquip(equip bool) func(*Session, []string) error {
 	return func(s *Session, args []string) error {
 		if len(args) == 0 {
@@ -453,14 +515,16 @@ func cmdHelp(*Session, []string) error {
 		if c.help == "" {
 			continue
 		}
-		name := c.names[0]
+		var name strings.Builder
+		name.WriteString(c.names[0])
 		for _, next := range commands[i+1:] {
 			if next.help != "" {
 				break
 			}
-			name += "|" + next.names[0]
+			name.WriteString("|")
+			name.WriteString(next.names[0])
 		}
-		fmt.Fprintf(stdout, "  %-31s %s\n", strings.TrimSpace(name+" "+c.args), c.help)
+		fmt.Fprintf(stdout, "  %-31s %s\n", strings.TrimSpace(name.String()+" "+c.args), c.help)
 	}
 	fmt.Fprintln(stdout, "Tab, Right, End complete.")
 	return nil

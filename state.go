@@ -21,6 +21,7 @@ type savedCharacter struct {
 	HP        int            `json:"hp"`
 	Gold      int            `json:"gold"`
 	Resources map[string]int `json:"resources,omitempty"` // name -> uses left
+	Attuned   []string       `json:"attuned,omitempty"`
 	Equipped  []string       `json:"equipped,omitempty"`
 	Inventory []string       `json:"inventory,omitempty"`
 	Prepared  []Spell        `json:"prepared,omitzero"` // absent: keep the sheet's list
@@ -68,7 +69,7 @@ func Load(path string, chars []*Character) (*Character, error) {
 		}
 		c.HP = min(max(s.HP, 0), c.MaxHP)
 		c.Gold = s.Gold
-		c.Equipped, c.Inventory = s.Equipped, s.Inventory
+		c.Attuned, c.Equipped, c.Inventory = s.Attuned, s.Equipped, s.Inventory
 		if s.Prepared != nil && c.Spellcasting != nil {
 			c.Spellcasting.Prepared = s.Prepared
 		}
@@ -94,7 +95,7 @@ func Save(path string, chars []*Character, current *Character) error {
 		}
 		saved := savedCharacter{
 			Name: c.Name, HP: c.HP, Gold: c.Gold,
-			Resources: res, Equipped: c.Equipped, Inventory: c.Inventory,
+			Resources: res, Attuned: c.Attuned, Equipped: c.Equipped, Inventory: c.Inventory,
 		}
 		if sc := c.Spellcasting; sc != nil {
 			saved.Prepared = sc.Prepared

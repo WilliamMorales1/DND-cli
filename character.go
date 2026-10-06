@@ -22,8 +22,12 @@ const (
 )
 
 var abilityNames = [numAbilities][2]string{
-	{"STR", "strength"}, {"DEX", "dexterity"}, {"CON", "constitution"},
-	{"INT", "intelligence"}, {"WIS", "wisdom"}, {"CHA", "charisma"},
+	{"STR", "strength"},
+	{"DEX", "dexterity"},
+	{"CON", "constitution"},
+	{"INT", "intelligence"},
+	{"WIS", "wisdom"},
+	{"CHA", "charisma"},
 }
 
 func (a Ability) String() string { return abilityNames[a][0] }
@@ -46,11 +50,24 @@ type skillInfo struct {
 }
 
 var skills = []skillInfo{
-	{"Acrobatics", DEX}, {"Animal Handling", WIS}, {"Arcana", INT}, {"Athletics", STR},
-	{"Deception", CHA}, {"History", INT}, {"Insight", WIS}, {"Intimidation", CHA},
-	{"Investigation", INT}, {"Medicine", WIS}, {"Nature", INT}, {"Perception", WIS},
-	{"Performance", CHA}, {"Persuasion", CHA}, {"Religion", INT}, {"Sleight of Hand", DEX},
-	{"Stealth", DEX}, {"Survival", WIS},
+	{"Acrobatics", DEX},
+	{"Animal Handling", WIS},
+	{"Arcana", INT},
+	{"Athletics", STR},
+	{"Deception", CHA},
+	{"History", INT},
+	{"Insight", WIS},
+	{"Intimidation", CHA},
+	{"Investigation", INT},
+	{"Medicine", WIS},
+	{"Nature", INT},
+	{"Perception", WIS},
+	{"Performance", CHA},
+	{"Persuasion", CHA},
+	{"Religion", INT},
+	{"Sleight of Hand", DEX},
+	{"Stealth", DEX},
+	{"Survival", WIS},
 }
 
 const (
@@ -132,6 +149,7 @@ type Character struct {
 	Spellcasting *Spellcasting // nil for non-casters
 	Profs        Proficiencies
 	Gold         int
+	Attuned      []string
 	Equipped     []string
 	Inventory    []string
 }
@@ -232,6 +250,7 @@ func (c *Character) PrintSheet(w io.Writer) {
 
 func (c *Character) PrintInventory(w io.Writer) {
 	fmt.Fprintf(w, "  Gold: %d gp\n", c.Gold)
+	printList(w, "Attuned", c.Attuned)
 	printList(w, "Equipped", c.Equipped)
 	printList(w, "Inventory", c.Inventory)
 }
