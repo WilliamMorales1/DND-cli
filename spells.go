@@ -4,7 +4,9 @@ import (
 	"cmp"
 	"fmt"
 	"io"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"dnd/internal/fivetools"
@@ -36,8 +38,77 @@ type Proficiencies struct {
 	Armor, Weapons, Tools, Languages []string
 }
 
+// spellItem is a magic item whose "+N" boosts spellcasting while attuned.
+type spellItem struct {
+	name       string
+	attackOnly bool // spell attacks only, not save DC
+}
+
+var spellItems = []spellItem{
+	{"Fate Dealer's Deck", false},
+	{"Rod of the Pact Keeper", false},
+	{"Amulet of the Devout", false},
+	{"Arcane Grimoire", false},
+	{"All-Purpose Tool", false},
+	{"Moon Sickle", false},
+	{"Bloodwell Vial", false},
+	{"Rhythm-Maker's Drum", false},
+	{"Wand of the War Mage", true},
+}
+
+var plusN = regexp.MustCompile(`\+(\d+)`)
+
+type spellBonus struct {
+	item       string
+	n          int
+	attackOnly bool
+}
+
+// spellBonuses reads attuned items, so attuning a different deck changes the numbers.
+func (c *Character) spellBonuses() []spellBonus {
+	var out []spellBonus
+	for _, item := range c.Attuned {
+		i := slices.IndexFunc(spellItems, func(s spellItem) bool { return strings.Contains(squash(item), squash(s.name)) })
+		m := plusN.FindStringSubmatch(item)
+		if i < 0 || m == nil {
+			continue
+		}
+		n, _ := strconv.Atoi(m[1])
+		out = append(out, spellBonus{item, n, spellItems[i].attackOnly})
+	}
+	return out
+}
+
+func (c *Character) spellItemBonus(attack bool) int {
+	total := 0
+	for _, b := range c.spellBonuses() {
+		if attack || !b.attackOnly {
+			total += b.n
+		}
+	}
+	return total
+}
+
 func (c *Character) SpellAttack() int {
-	return c.Prof() + c.Mod(c.Spellcasting.Ability)
+	return c.Prof() + c.Mod(c.Spellcasting.Ability) + c.spellItemBonus(true)
+}
+
+// spellSummary formats attack and DC with the attuned items behind them.
+func (c *Character) spellSummary() string {
+	sc := c.Spellcasting
+	s := fmt.Sprintf("attack %+d, save DC %d", c.SpellAttack(), c.SpellDC(sc.Ability))
+	var parts []string
+	for _, b := range c.spellBonuses() {
+		part := b.item
+		if b.attackOnly {
+			part += " (attack only)"
+		}
+		parts = append(parts, part)
+	}
+	if len(parts) > 0 {
+		s += " [incl. " + strings.Join(parts, ", ") + "]"
+	}
+	return s
 }
 
 func hasSpell(spells []Spell, name string) bool {
@@ -89,8 +160,8 @@ func (c *Character) PrintSpells(w io.Writer) {
 		fmt.Fprintf(w, "  %s has no spellcasting\n", c.Name)
 		return
 	}
-	fmt.Fprintf(w, "  %s spellcasting (%v): attack %+d, save DC %d, prepared %d/%d\n",
-		sc.Class, sc.Ability, c.SpellAttack(), c.SpellDC(sc.Ability), len(sc.Prepared), sc.PrepLimit)
+	fmt.Fprintf(w, "  %s spellcasting (%v): %s, prepared %d/%d\n",
+		sc.Class, sc.Ability, c.spellSummary(), len(sc.Prepared), sc.PrepLimit)
 	c.PrintSlots(w)
 	if len(sc.Cantrips) > 0 {
 		fmt.Fprintf(w, "  Cantrips: %s\n", strings.Join(sc.Cantrips, ", "))
@@ -128,8 +199,12 @@ func (c *Character) PrintProfs(w io.Writer) {
 		title string
 		items []string
 	}{
-		{"Saving throws", saves}, {"Skills", skillList}, {"Armor", p.Armor},
-		{"Weapons", p.Weapons}, {"Tools", p.Tools}, {"Languages", p.Languages},
+		{"Saving throws", saves},
+		{"Skills", skillList},
+		{"Armor", p.Armor},
+		{"Weapons", p.Weapons},
+		{"Tools", p.Tools},
+		{"Languages", p.Languages},
 	} {
 		fmt.Fprintf(w, "    %-14s %s\n", row.title+":", cmp.Or(strings.Join(row.items, ", "), "none recorded"))
 	}

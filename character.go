@@ -156,9 +156,21 @@ type Character struct {
 
 func abilityMod(score int) int { return score/2 - 5 }
 
-func (c *Character) Prof() int             { return 2 + (max(c.Level, 1)-1)/4 }
-func (c *Character) Mod(a Ability) int     { return abilityMod(c.Abilities[a]) }
-func (c *Character) SpellDC(a Ability) int { return 8 + c.Prof() + c.Mod(a) }
+func (c *Character) Prof() int         { return 2 + (max(c.Level, 1)-1)/4 }
+func (c *Character) Mod(a Ability) int { return abilityMod(c.Abilities[a]) }
+
+func (c *Character) SpellDC(a Ability) int {
+	dc := 8 + c.Prof() + c.Mod(a)
+	if c.isCastingAbility(a) {
+		dc += c.spellItemBonus(false)
+	}
+	return dc
+}
+
+// isCastingAbility stands in for "is a spell": sheets don't tag attacks as spells.
+func (c *Character) isCastingAbility(a Ability) bool {
+	return c.Spellcasting != nil && c.Spellcasting.Ability == a
+}
 
 func (c *Character) SaveMod(a Ability) int {
 	m := c.Mod(a) + c.SaveBonus
@@ -176,7 +188,13 @@ func (c *Character) SkillMod(s Skill) int {
 	return m
 }
 
-func (c *Character) ToHit(atk Attack) int { return c.Mod(atk.Ability) + c.Prof() + atk.Magic }
+func (c *Character) ToHit(atk Attack) int {
+	hit := c.Mod(atk.Ability) + c.Prof() + atk.Magic
+	if c.isCastingAbility(atk.Ability) {
+		hit += c.spellItemBonus(true)
+	}
+	return hit
+}
 
 func (c *Character) DamageBonus(atk Attack) int {
 	if atk.NoMod {
@@ -222,6 +240,9 @@ func (c *Character) PrintSheet(w io.Writer) {
 		items = append(items, fmt.Sprintf("%-16v %+d%s", s, c.SkillMod(s), star(c.SkillProfs.Has(s))))
 	}
 	printColumns(w, items)
+	if sc := c.Spellcasting; sc != nil {
+		fmt.Fprintf(w, "  Spellcasting (%v): %s\n", sc.Ability, c.spellSummary())
+	}
 	if len(c.Attacks) > 0 {
 		fmt.Fprintln(w, "  Attacks:")
 		for _, atk := range c.Attacks {
