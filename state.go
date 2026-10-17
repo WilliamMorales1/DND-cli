@@ -1,12 +1,16 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
+	"unicode"
 )
 
 // saveFile holds everything that changes during play. Base stats stay in
@@ -89,6 +93,7 @@ func Load(path string, chars []*Character) (*Character, error) {
 func Save(path string, chars []*Character, current *Character) error {
 	save := saveFile{Current: current.Name}
 	for _, c := range chars {
+		c.sortLists()
 		res := make(map[string]int, len(c.Resources))
 		for _, r := range c.Resources {
 			res[r.Name] = r.Left
@@ -120,4 +125,42 @@ func Save(path string, chars []*Character, current *Character) error {
 		return err
 	}
 	return os.Rename(tmp.Name(), path)
+}
+
+// sortLists orders mutable lists in place so the sheet and save stay tidy
+// however items were added.
+func (c *Character) sortLists() {
+	slices.SortStableFunc(c.Resources, func(a, b *Resource) int { return naturalCompare(a.Name, b.Name) })
+	for _, l := range [][]string{c.Attuned, c.Equipped, c.Inventory} {
+		slices.SortStableFunc(l, naturalCompare)
+	}
+}
+
+// naturalCompare orders case-insensitively, treating digit runs as numbers
+// so "2 Bolts" sorts before "20 Bolts" and "10th" after "9th".
+func naturalCompare(a, b string) int {
+	ar, br := []rune(a), []rune(b)
+	i, j := 0, 0
+	for i < len(ar) && j < len(br) {
+		if unicode.IsDigit(ar[i]) && unicode.IsDigit(br[j]) {
+			si, sj := i, j
+			for i < len(ar) && unicode.IsDigit(ar[i]) {
+				i++
+			}
+			for j < len(br) && unicode.IsDigit(br[j]) {
+				j++
+			}
+			na := strings.TrimLeft(string(ar[si:i]), "0")
+			nb := strings.TrimLeft(string(br[sj:j]), "0")
+			if c := cmp.Or(cmp.Compare(len(na), len(nb)), strings.Compare(na, nb)); c != 0 {
+				return c
+			}
+			continue
+		}
+		if c := cmp.Compare(unicode.ToLower(ar[i]), unicode.ToLower(br[j])); c != 0 {
+			return c
+		}
+		i, j = i+1, j+1
+	}
+	return cmp.Or(cmp.Compare(len(ar)-i, len(br)-j), strings.Compare(a, b))
 }
